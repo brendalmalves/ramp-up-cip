@@ -22,7 +22,7 @@ message = "Alô Mundo!"
 public_key_b = private_key.public_key()
 
 try:
-    receive_pk_b = requests.get('http://127.0.0.1:5000/send-public-key').text.encode()
+    receive_pk_b = requests.get('http://flask:5000/send-public-key').text.encode()
     public_key_b = serialization.load_pem_public_key(receive_pk_b)
 except:
     print("de novo aquele erro do serialization")
@@ -51,4 +51,4 @@ datas = {'public_key': public_key_pem.decode(),
          }
 
 
-requests.post('http://127.0.0.1:5000/receive-datas', json=datas)
+requests.post('http://flask:5000/receive-datas', json=datas)
