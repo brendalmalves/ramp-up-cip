@@ -1,12 +1,16 @@
-import base64
-import requests
-from cryptography.exceptions import InvalidSignature
 from flask import Flask
+from flask import request
+from cryptography.hazmat.primitives.serialization import load_pem_public_key
 from cryptography.hazmat.primitives.asymmetric import rsa
-from cryptography.hazmat.primitives.asymmetric import padding
-from cryptography.hazmat.primitives.asymmetric.padding import OAEP, MGF1
 from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.asymmetric import padding
+from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import serialization
+
+app = Flask(__name__)
+
+if __name__ == '__main__':
+    app.run(debug=True)
 
 private_key = rsa.generate_private_key(
     public_exponent=65537,
@@ -19,55 +23,43 @@ public_key_pem = public_key.public_bytes(
     format=serialization.PublicFormat.SubjectPublicKeyInfo,
 )
 
-app = Flask(__name__)
 
-@app.route('/sendPublicKey', methods=['GET'])
-async def sendPublicKey():
+@app.route('/send-public-key', methods=['GET'])
+def send_public_key():
     return public_key_pem
 
+@app.route('/receive-datas', methods=['POST'])
+def receive_datas():
+    data = request.json
+    public_key_a = load_pem_public_key(str.encode(data['public_key']))
+    signature = bytes.fromhex(data['signature'])
+    cipher_text = bytes.fromhex(data['cipher_text'])
 
-#receber mensagem, signature e chave publica de appA
-pk_response = requests.get("http://127.0.0.1:5001/sendDatas").json()
-
-p_key_A = pk_response['public_key_pem']
-signature = pk_response['signature']
-msg = pk_response['cipher_text']
-
-public_key_pem_by = base64.b64decode(p_key_A)
-public_key_A = serialization.load_pem_public_key(public_key_pem_by)
-
-encrypted_msg = base64.b64decode(msg)
-signature_A = base64.b64decode(signature)
-
-try:
-    mensagem_verificada = public_key_A.verify(
-        signature_A,
-        encrypted_msg,
-        padding.PSS(
-            mgf=padding.MGF1(hashes.SHA256()),
-            salt_length=padding.PSS.MAX_LENGTH
-        ),
-        hashes.SHA256()
-    )
-    print('assinatura válida')
-
-except InvalidSignature:
-    print('assinatura não é válida')
-
-# decifrar a mensagem recebida
-try:
-    plaintext = private_key.decrypt(
-        encrypted_msg,
-        OAEP(
-            mgf=MGF1(algorithm=hashes.SHA256()),
-            algorithm=hashes.SHA256(),
-            label=None
+    try:
+        public_key_a.verify(
+            signature,
+            cipher_text,
+            padding.PSS(
+                mgf=padding.MGF1(hashes.SHA256()),
+                salt_length=padding.PSS.MAX_LENGTH
+            ),
+            hashes.SHA256()
         )
+        print('assinatura válida')
 
-    )
-    print(plaintext)
-except:
-    print('não consegui decifrar')
+    except InvalidSignature:
+        print('assinatura não é válida')
 
-
-app.run(port=5000)
+    try:
+        plaintext = private_key.decrypt(
+            cipher_text,
+            padding.OAEP(
+                mgf=padding.MGF1(algorithm=hashes.SHA256()),
+                algorithm=hashes.SHA256(),
+                label=None
+            )).decode('utf-8')
+        print(plaintext)
+        return '', 200
+    except:
+        print('não consegui decifrar')
+        return '', 400

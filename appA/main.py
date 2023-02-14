@@ -1,14 +1,9 @@
-import json
 import requests
-import base64
-from flask import Flask
 from cryptography.hazmat.primitives.asymmetric import rsa
-from cryptography.hazmat.primitives.asymmetric.padding import OAEP, MGF1
-from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives import serialization
 
-app = Flask(__name__)
 
 private_key = rsa.generate_private_key(
     public_exponent=65537,
@@ -16,24 +11,30 @@ private_key = rsa.generate_private_key(
 )
 
 public_key = private_key.public_key()
+
 public_key_pem = public_key.public_bytes(
     encoding=serialization.Encoding.PEM,
     format=serialization.PublicFormat.SubjectPublicKeyInfo,
 )
+message = "Alô Mundo!"
 
-pk_response = requests.get("http://127.0.0.1:5000/sendPublicKey").text.encode()
-public_key_b = serialization.load_pem_public_key(pk_response)
+#so pra compilar, apagar depois
+public_key_b = private_key.public_key()
 
-message = b"Alo Mundo!"
+try:
+    receive_pk_b = requests.get('http://127.0.0.1:5000/send-public-key').text.encode()
+    public_key_b = serialization.load_pem_public_key(receive_pk_b)
+except:
+    print("de novo aquele erro do serialization")
+    
 
 cipher_text = public_key_b.encrypt(
-    message,
-    OAEP(
-        mgf=MGF1(algorithm=hashes.SHA256()),
+    message.encode('utf-8'),
+    padding.OAEP(
+        mgf=padding.MGF1(algorithm=hashes.SHA256()),
         algorithm=hashes.SHA256(),
         label=None
-    )
-)
+    ))
 
 signature = private_key.sign(
     cipher_text,
@@ -44,19 +45,10 @@ signature = private_key.sign(
     hashes.SHA256()
 )
 
-public_key_pem_by = base64.b64encode(public_key_pem)
-signature_by = base64.b64encode(signature)
-cipher_text_by = base64.b64encode(cipher_text)
-
-datas = {'public_key_pem': public_key_pem_by.decode(),
-         'signature': signature_by.decode(),
-         'cipher_text': cipher_text_by.decode()
+datas = {'public_key': public_key_pem.decode(),
+         'signature': signature.hex(),
+         'cipher_text': cipher_text.hex()
          }
 
 
-@app.route('/sendDatas', methods=['GET'])
-async def sendToAppB():
-    return json.dumps(datas)
-
-
-app.run(port=5001)
+requests.post('http://127.0.0.1:5000/receive-datas', json=datas)
