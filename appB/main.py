@@ -10,7 +10,7 @@ from cryptography.hazmat.primitives import serialization
 app = Flask(__name__)
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', )
+    app.run(debug=True, host='0.0.0.0')
 
 private_key = rsa.generate_private_key(
     public_exponent=65537,
@@ -27,6 +27,7 @@ public_key_pem = public_key.public_bytes(
 @app.route('/send-public-key', methods=['GET'])
 def send_public_key():
     return public_key_pem
+
 
 @app.route('/receive-datas', methods=['POST'])
 def receive_datas():
