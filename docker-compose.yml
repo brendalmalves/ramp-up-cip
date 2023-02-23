@@ -1,0 +1,19 @@
+version: "3.9"
+services:
+  app-a: 
+    image: brendalmalves/app-a
+    container_name: app-a
+    networks:
+      - compose-crypto
+    
+  app-b: 
+    image: brendalmalves/app-b
+    container_name: flask
+    networks:
+      - compose-crypto
+    ports:
+      - 5000:5000
+
+networks:
+  compose-crypto:
+    driver: bridge

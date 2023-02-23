@@ -59,7 +59,7 @@ def receive_datas():
                 algorithm=hashes.SHA256(),
                 label=None
             )).decode('utf-8')
-        print(plaintext)
+        print(plaintext, flush=True)
         return '', 200
     except:
         print('não consegui decifrar')
